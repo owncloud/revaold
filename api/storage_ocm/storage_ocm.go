@@ -10,7 +10,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cernbox/reva/api"
+	"github.com/cernbox/revaold/api"
 	"github.com/studio-b12/gowebdav"
 	"go.uber.org/zap"
 )
