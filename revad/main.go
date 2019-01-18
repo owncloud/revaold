@@ -1,42 +1,47 @@
 package main
 
 import (
+    "bufio"
+	"crypto/rsa"
+    "crypto/x509"
 	"encoding/json"
+    "encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
+    "os"
 	"sort"
 
 	"github.com/cernbox/cboxredirectd/api/redismigrator"
 	"github.com/cernbox/gohub/goconfig"
 	"github.com/cernbox/gohub/gologger"
 
-	"github.com/cernbox/revaold/api"
-	"github.com/cernbox/revaold/api/auth_manager_impersonate"
-	"github.com/cernbox/revaold/api/auth_manager_ldap"
-	"github.com/cernbox/revaold/api/mount"
-	"github.com/cernbox/revaold/api/project_manager_db"
-	"github.com/cernbox/revaold/api/public_link_manager_owncloud"
-	"github.com/cernbox/revaold/api/share_manager_owncloud"
-	"github.com/cernbox/revaold/api/storage_all_projects"
-	"github.com/cernbox/revaold/api/storage_eos"
-	"github.com/cernbox/revaold/api/storage_homemigration"
-	"github.com/cernbox/revaold/api/storage_local"
-	"github.com/cernbox/revaold/api/storage_public_link"
-	"github.com/cernbox/revaold/api/storage_share"
-	"github.com/cernbox/revaold/api/storage_usermigration"
-	"github.com/cernbox/revaold/api/storage_wrapper_home"
-	"github.com/cernbox/revaold/api/tag_manager_db"
-	"github.com/cernbox/revaold/api/token_manager_jwt"
-	"github.com/cernbox/revaold/api/user_manager_cboxgroupd"
-	"github.com/cernbox/revaold/api/virtual_storage"
-	"github.com/cernbox/revaold/revad/svcs/authsvc"
-	"github.com/cernbox/revaold/revad/svcs/previewsvc"
-	"github.com/cernbox/revaold/revad/svcs/sharesvc"
-	"github.com/cernbox/revaold/revad/svcs/storagesvc"
-	"github.com/cernbox/revaold/revad/svcs/taggersvc"
+	"github.com/owncloud/revaold/api"
+	"github.com/owncloud/revaold/api/auth_manager_impersonate"
+	"github.com/owncloud/revaold/api/auth_manager_ldap"
+	"github.com/owncloud/revaold/api/mount"
+	"github.com/owncloud/revaold/api/project_manager_db"
+	"github.com/owncloud/revaold/api/public_link_manager_owncloud"
+	"github.com/owncloud/revaold/api/share_manager_owncloud"
+	"github.com/owncloud/revaold/api/storage_all_projects"
+	"github.com/owncloud/revaold/api/storage_eos"
+	"github.com/owncloud/revaold/api/storage_homemigration"
+	"github.com/owncloud/revaold/api/storage_local"
+	"github.com/owncloud/revaold/api/storage_public_link"
+	"github.com/owncloud/revaold/api/storage_share"
+	"github.com/owncloud/revaold/api/storage_usermigration"
+	"github.com/owncloud/revaold/api/storage_wrapper_home"
+	"github.com/owncloud/revaold/api/tag_manager_db"
+	"github.com/owncloud/revaold/api/token_manager_jwt"
+	"github.com/owncloud/revaold/api/user_manager_cboxgroupd"
+	"github.com/owncloud/revaold/api/virtual_storage"
+	"github.com/owncloud/revaold/revad/svcs/authsvc"
+	"github.com/owncloud/revaold/revad/svcs/previewsvc"
+	"github.com/owncloud/revaold/revad/svcs/sharesvc"
+	"github.com/owncloud/revaold/revad/svcs/storagesvc"
+	"github.com/owncloud/revaold/revad/svcs/taggersvc"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -390,6 +395,7 @@ func init() {
 
 	gc.Add("token-manager", "jwt", "Implementation to use for the token manager")
 	gc.Add("token-manager-jwt-secret", "bar", "Secret to sign JWT tokens.")
+	gc.Add("token-manager-oidc-public-key", "", "Public key to verify oidc tokens.")
 
 	gc.Add("public-link-manager", "owncloud", "Implementation to use for the public link manager")
 	gc.Add("public-link-manager-owncloud-db-username", "foo", "Username to access the owncloud database.")
@@ -465,8 +471,42 @@ func getProjectManager() api.ProjectManager {
 	return projectManager
 }
 
+func getPublicKey() *rsa.PublicKey {
+    publicKeyFile, err := os.Open(gc.GetString("token-manager-oidc-public-key"))
+    if err != nil {
+		logger.Warn("public key not found", zap.Error(err))
+        return nil
+    }
+    
+    pemfileinfo, _ := publicKeyFile.Stat()
+    var size int64 = pemfileinfo.Size()
+    pembytes := make([]byte, size)
+    
+    buffer := bufio.NewReader(publicKeyFile)
+    _, err = buffer.Read(pembytes)
+    
+    data, _ := pem.Decode([]byte(pembytes))
+    
+    publicKeyFile.Close()
+    
+    publicKeyImported, err := x509.ParsePKIXPublicKey(data.Bytes)
+    
+    if err != nil {
+		logger.Warn("could not parse public key", zap.Error(err))
+        return nil
+    }
+    
+    rsaPub, ok := publicKeyImported.(*rsa.PublicKey)
+    
+    if !ok {
+		logger.Warn("could not cast public key", zap.Error(err))
+        return nil
+    }
+    
+    return rsaPub
+}
 func getTokenManager() api.TokenManager {
-	tokenManager := token_manager_jwt.New(gc.GetString("token-manager-jwt-secret"))
+	tokenManager := token_manager_jwt.New(gc.GetString("token-manager-jwt-secret"), getPublicKey())
 	return tokenManager
 }
 func getAuthManager() api.AuthManager {

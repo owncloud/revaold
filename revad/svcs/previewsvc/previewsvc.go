@@ -1,7 +1,7 @@
 package previewsvc
 
 import (
-	"github.com/cernbox/revaold/api"
+	"github.com/owncloud/revaold/api"
 )
 
 func New() api.PreviewServer {

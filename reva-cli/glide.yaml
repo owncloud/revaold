@@ -1,4 +1,4 @@
-package: github.com/cernbox/revaold/reva-cli
+package: github.com/owncloud/revaold/reva-cli
 import:
 - package: github.com/cernbox/reva
   subpackages:

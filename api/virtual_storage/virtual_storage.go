@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cernbox/revaold/api"
+	"github.com/owncloud/revaold/api"
 	"github.com/gofrs/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags/zap"
 	"go.uber.org/zap"

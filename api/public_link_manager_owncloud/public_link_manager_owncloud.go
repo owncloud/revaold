@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cernbox/revaold/api"
+	"github.com/owncloud/revaold/api"
 
 	"database/sql"
 	"github.com/bluele/gcache"

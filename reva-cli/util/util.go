@@ -10,7 +10,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cernbox/revaold/api"
+	"github.com/owncloud/revaold/api"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"

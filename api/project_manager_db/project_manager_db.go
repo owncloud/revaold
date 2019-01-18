@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cernbox/revaold/api"
+	"github.com/owncloud/revaold/api"
 
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"

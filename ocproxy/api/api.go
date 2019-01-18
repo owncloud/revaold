@@ -30,7 +30,7 @@ import (
 	"syscall"
 	"time"
 
-	reva_api "github.com/cernbox/revaold/api"
+	reva_api "github.com/owncloud/revaold/api"
 
 	"github.com/bluele/gcache"
 	"github.com/disintegration/imaging"
@@ -4793,7 +4793,7 @@ func (p *proxy) capabilities(w http.ResponseWriter, r *http.Request) {
 	        }
 	      },
 	      "version": {
-	        "edition": "",
+	        "edition": "phoenix",
 	        "major": 8,
 	        "micro": 1,
 	        "minor": 2,
@@ -6528,7 +6528,9 @@ func (p *proxy) tokenAuth(h http.HandlerFunc) http.HandlerFunc {
 		if token == "" {
 			reqToken := r.Header.Get("Authorization")
 			splitToken := strings.Split(reqToken, " ")
-			token = splitToken[1]
+			if splitToken[1] == "Bearer" {
+				token = splitToken[1]
+			}
 		}
 
 		// 4th: check basic auth
