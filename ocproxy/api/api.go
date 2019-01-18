@@ -6524,7 +6524,14 @@ func (p *proxy) tokenAuth(h http.HandlerFunc) http.HandlerFunc {
 			token = r.URL.Query().Get("x-access-token")
 		}
 
-		// 3rd: check basic auth
+		// 3rd: check if oidc token comes as bearer auth
+		if token == "" {
+			reqToken := r.Header.Get("Authorization")
+			splitToken := strings.Split(reqToken, " ")
+			token = splitToken[1]
+		}
+
+		// 4th: check basic auth
 		// the request public.php/webdav sends the public link token as basic auth, so
 		// we cannot use basic auth first as it will try to authorize a non existing user, reducing the performance
 		if token == "" {
