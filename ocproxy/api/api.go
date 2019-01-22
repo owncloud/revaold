@@ -6528,7 +6528,7 @@ func (p *proxy) tokenAuth(h http.HandlerFunc) http.HandlerFunc {
 		if token == "" {
 			reqToken := r.Header.Get("Authorization")
 			splitToken := strings.Split(reqToken, " ")
-			if splitToken[1] == "Bearer" {
+			if splitToken[0] == "Bearer" {
 				token = splitToken[1]
 			}
 		}
