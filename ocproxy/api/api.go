@@ -30,7 +30,7 @@ import (
 	"syscall"
 	"time"
 
-	reva_api "github.com/cernbox/revaold/api"
+	reva_api "github.com/owncloud/revaold/api"
 
 	"github.com/bluele/gcache"
 	"github.com/disintegration/imaging"
@@ -49,6 +49,7 @@ func (p *proxy) registerRoutes() {
 	p.router.HandleFunc("/status.php", p.status).Methods("GET")
 	p.router.HandleFunc("/ocs/v1.php/cloud/capabilities", p.capabilities).Methods("GET")
 	p.router.HandleFunc("/index.php/ocs/cloud/user", p.tokenAuth(p.getCurrentUser)).Methods("GET")
+	p.router.HandleFunc("/ocs/v1.php/cloud/user", p.tokenAuth(p.getCurrentUser)).Methods("GET")
 
 	// user prefixed webdav routes
 	p.router.HandleFunc("/remote.php/dav/files/{username}/{path:.*}", p.tokenAuth(p.get)).Methods("GET")
@@ -4792,7 +4793,7 @@ func (p *proxy) capabilities(w http.ResponseWriter, r *http.Request) {
 	        }
 	      },
 	      "version": {
-	        "edition": "",
+	        "edition": "phoenix",
 	        "major": 8,
 	        "micro": 1,
 	        "minor": 2,
@@ -6523,7 +6524,16 @@ func (p *proxy) tokenAuth(h http.HandlerFunc) http.HandlerFunc {
 			token = r.URL.Query().Get("x-access-token")
 		}
 
-		// 3rd: check basic auth
+		// 3rd: check if oidc token comes as bearer auth
+		if token == "" {
+			reqToken := r.Header.Get("Authorization")
+			splitToken := strings.Split(reqToken, " ")
+			if splitToken[0] == "Bearer" {
+				token = splitToken[1]
+			}
+		}
+
+		// 4th: check basic auth
 		// the request public.php/webdav sends the public link token as basic auth, so
 		// we cannot use basic auth first as it will try to authorize a non existing user, reducing the performance
 		if token == "" {

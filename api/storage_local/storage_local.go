@@ -9,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cernbox/revaold/api"
+	"github.com/owncloud/revaold/api"
 
 	"go.uber.org/zap"
 )
@@ -91,7 +91,7 @@ func (fs *localStorage) GetQuota(ctx context.Context, name string) (int, int, er
 
 func (fs *localStorage) CreateDir(ctx context.Context, name string) error {
 	name = fs.addNamespace(name)
-	return os.Mkdir(name, 0644)
+	return os.Mkdir(name, 0750)
 }
 
 func (fs *localStorage) Delete(ctx context.Context, name string) error {

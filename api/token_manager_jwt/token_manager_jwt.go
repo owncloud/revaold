@@ -2,22 +2,24 @@ package token_manager_jwt
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/cernbox/revaold/api"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags/zap"
+	"github.com/owncloud/revaold/api"
 	"go.uber.org/zap"
 )
 
-func New(signSecret string) api.TokenManager {
-	return &tokenManager{signSecret: signSecret}
+func New(signSecret string, publicKey *rsa.PublicKey) api.TokenManager {
+	return &tokenManager{signSecret: signSecret, publicKey: publicKey}
 }
 
 type tokenManager struct {
 	signSecret string
+	publicKey  *rsa.PublicKey
 }
 
 func (tm *tokenManager) ForgeUserToken(ctx context.Context, user *api.User) (string, error) {
@@ -39,7 +41,14 @@ func (tm *tokenManager) ForgeUserToken(ctx context.Context, user *api.User) (str
 func (tm *tokenManager) DismantleUserToken(ctx context.Context, token string) (*api.User, error) {
 	l := ctx_zap.Extract(ctx)
 	rawToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-		return []byte(tm.signSecret), nil
+		l.Debug("parsed", zap.Any("token", token))
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); ok {
+			return tm.publicKey, nil
+		} else if _, ok := token.Method.(*jwt.SigningMethodHMAC); ok {
+			return []byte(tm.signSecret), nil
+		} else {
+			return nil, errors.New("unsupported token method")
+		}
 	})
 	if err != nil {
 		l.Error("invalid token", zap.Error(err), zap.String("token", token))
@@ -52,26 +61,43 @@ func (tm *tokenManager) DismantleUserToken(ctx context.Context, token string) (*
 	}
 
 	claims := rawToken.Claims.(jwt.MapClaims)
-	accountID, ok := claims["account_id"].(string)
-	if !ok {
-		return nil, errors.New("account_id claim is not a string")
-	}
-
-	displayName, _ := claims["display_name"].(string) // no displayname is not an error
-
-	rawGroups, ok := claims["groups"].([]interface{})
-	if !ok {
-		return nil, errors.New("groups claim is not a []interface{}")
-	}
+	var accountID string
+	var displayName string
 	groups := []string{}
-	for _, g := range rawGroups {
-		group, ok := g.(string)
+
+	if kopanoIdentity, ok := claims["kc.identity"].(map[string]interface{}); ok {
+		accountID, ok = kopanoIdentity["kc.i.un"].(string)
 		if !ok {
-			err := errors.New(fmt.Sprintf("group %+v can not be casted to string", g))
-			l.Error("", zap.Error(err))
-			return nil, err
+			return nil, errors.New("kc.identity kc.i.un claim is not a string")
 		}
-		groups = append(groups, group)
+
+		displayName, _ = kopanoIdentity["kc.i.dn"].(string) // no displayname is not an error
+
+		// FIXME ... fetch groups from userInfo? LDAP?
+		// note that OIDC explicitly lists groups as an example for a claim that is not in the spec: https://openid.net/specs/openid-connect-core-1_0.html#ClaimsParameter
+
+	} else {
+
+		accountID, ok = claims["account_id"].(string)
+		if !ok {
+			return nil, errors.New("account_id claim is not a string")
+		}
+
+		displayName, _ = claims["display_name"].(string) // no displayname is not an error
+
+		rawGroups, ok := claims["groups"].([]interface{})
+		if !ok {
+			return nil, errors.New("groups claim is not a []interface{}")
+		}
+		for _, g := range rawGroups {
+			group, ok := g.(string)
+			if !ok {
+				err := errors.New(fmt.Sprintf("group %+v can not be casted to string", g))
+				l.Error("", zap.Error(err))
+				return nil, err
+			}
+			groups = append(groups, group)
+		}
 	}
 
 	user := &api.User{

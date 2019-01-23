@@ -2,7 +2,7 @@ package auth_manager_impersonate
 
 import (
 	"context"
-	"github.com/cernbox/revaold/api"
+	"github.com/owncloud/revaold/api"
 )
 
 type authManager struct{}

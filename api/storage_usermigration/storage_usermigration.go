@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cernbox/revaold/api"
+	"github.com/owncloud/revaold/api"
 	"go.uber.org/zap"
 
 	cbox_api "github.com/cernbox/cboxredirectd/api"
